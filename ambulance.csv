@@ -1,0 +1,3 @@
+ambulance_name,ambulance_no,password,district,driver_mobile,img_front,img_back,img_side,status
+Vibha,TN 06 AB 1234,vibha@123,namakkal,9360882288,f_TN 06 AB 1234.jpg,b_TN 06 AB 1234.jpg,s_TN 06 AB 1234.jpg,Approved
+Karupan,TN 88 D 6127,Karupan@123,Namakkal,9360882288,f_TN 88 D 6127.jpg,b_TN 88 D 6127.jpg,s_TN 88 D 6127.jpg,Pending

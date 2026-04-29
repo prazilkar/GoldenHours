@@ -1,0 +1,3 @@
+hospital_name,district,latitude,longitude,phone,specialization,password,status,icu_beds,gen_beds
+sks,Salem,11.670372487441997,78.14343611534255,9360882288,0.0,sks@123,Approved,10,20
+vibha,Namakkal,11.200142248452925,78.18540486931488,9876543210,Multi Speciality,vibha@123,Approved,8,15

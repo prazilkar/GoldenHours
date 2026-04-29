@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>RescueLink - Emergency Ambulance</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Poppins', system-ui, sans-serif;
+            background: #000000;
+            min-height: 100vh;
+            padding: 12px;
+            position: relative;
+            background-image: radial-gradient(circle at 10% 20%, rgba(229, 57, 70, 0.15) 0%, rgba(0,0,0,0.95) 90%);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(229, 57, 70, 0.03) 0px,
+                rgba(229, 57, 70, 0.03) 2px,
+                transparent 2px,
+                transparent 8px
+            );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .dashboard-container {
+            max-width: 580px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #000000, #1a0000);
+            padding: 18px 20px;
+            border-radius: 20px;
+            color: white;
+            text-align: center;
+            margin-bottom: 16px;
+            border: 2px solid #e63946;
+            box-shadow: 0 0 20px rgba(230, 57, 70, 0.5);
+            animation: borderPulse 1.5s infinite;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes borderPulse {
+            0%, 100% { border-color: #e63946; box-shadow: 0 0 15px rgba(230, 57, 70, 0.5); }
+            50% { border-color: #ff6b6b; box-shadow: 0 0 35px rgba(230, 57, 70, 0.9); }
+        }
+
+        .header h1 {
+            font-size: clamp(1.3rem, 5vw, 1.8rem);
+            letter-spacing: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-shadow: 0 0 10px #e63946;
+        }
+
+        .header h1 i {
+            animation: shake 0.5s infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(5deg); }
+            75% { transform: rotate(-5deg); }
+        }
+
+        .header p {
+            font-size: clamp(0.65rem, 3vw, 0.8rem);
+            opacity: 0.9;
+            margin-top: 6px;
+            letter-spacing: 2px;
+        }
+
+        .map-wrapper {
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 2px #e63946;
+            position: relative;
+        }
+
+        #map {
+            height: clamp(280px, 35vw, 350px);
+            width: 100%;
+            background: #0a0a0a;
+        }
+
+        .card-body {
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(230, 57, 70, 0.4);
+        }
+
+        label {
+            display: block;
+            color: #e63946;
+            font-size: clamp(0.7rem, 3.5vw, 0.85rem);
+            margin-bottom: 6px;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        label i {
+            margin-right: 8px;
+        }
+
+        select {
+            width: 100%;
+            padding: clamp(12px, 4vw, 14px) clamp(14px, 4vw, 16px);
+            background: #1a1a1a;
+            border: 1.5px solid #e63946;
+            border-radius: 14px;
+            color: white;
+            font-size: clamp(0.85rem, 4vw, 1rem);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e63946' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+        }
+
+        select:hover, select:focus {
+            border-color: #ff6b6b;
+            box-shadow: 0 0 15px rgba(230, 57, 70, 0.4);
+            outline: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: clamp(13px, 4.5vw, 16px);
+            border: none;
+            border-radius: 14px;
+            font-size: clamp(0.9rem, 4vw, 1rem);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-gps {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            border: 1px solid #e63946;
+        }
+
+        .btn-gps:hover {
+            border-color: #ff6b6b;
+            box-shadow: 0 0 20px rgba(230, 57, 70, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-alert {
+            background: linear-gradient(135deg, #e63946, #8b0000);
+            color: white;
+            box-shadow: 0 0 20px rgba(230, 57, 70, 0.8);
+            animation: alertPulse 1s infinite;
+            font-size: clamp(1rem, 4.5vw, 1.2rem);
+        }
+
+        .btn-alert:disabled {
+            opacity: 0.5;
+            animation: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-reaching {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: white;
+            border: 1px solid #ffc107;
+            animation: reachingPulse 1.5s infinite;
+        }
+        
+        .btn-reaching:disabled {
+            opacity: 0.5;
+            animation: none;
+            cursor: not-allowed;
+        }
+        
+        .btn-unknown {
+            background: linear-gradient(135deg, #6c3483, #512e5f);
+            color: white;
+            border: 1px solid #9b59b6;
+        }
+        
+        .btn-unknown:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(155, 89, 182, 0.5);
+        }
+        
+        @keyframes reachingPulse {
+            0%, 100% { box-shadow: 0 0 5px #ff9800; }
+            50% { box-shadow: 0 0 25px #ffc107; }
+        }
+
+        @keyframes alertPulse {
+            0%, 100% { box-shadow: 0 0 10px #e63946, 0 0 20px #e63946; }
+            50% { box-shadow: 0 0 30px #ff0000, 0 0 50px #ff0000; }
+        }
+
+        .btn-alert:hover {
+            animation: none;
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .btn-group .btn {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .btn-reach {
+            background: linear-gradient(135deg, #1b4332, #0d2a1f);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+            text-shadow: 0 0 5px #00ff88;
+        }
+
+        .btn-reach:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-cancel {
+            background: linear-gradient(135deg, #3d1f1f, #2a1212);
+            color: #ff6b6b;
+            border: 1px solid #e63946;
+        }
+
+        .btn-cancel:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Camera Modal */
+        .camera-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .camera-modal.active {
+            display: flex;
+        }
+        
+        .camera-container {
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            width: 95%;
+            max-width: 450px;
+            border: 2px solid #e63946;
+            position: relative;
+        }
+        
+        #cameraVideo {
+            width: 100%;
+            height: auto;
+            background: #000;
+            object-fit: cover;
+        }
+        
+        .camera-preview {
+            width: 100%;
+            height: auto;
+            display: none;
+            object-fit: contain;
+        }
+        
+        .camera-controls {
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            background: #111;
+        }
+        
+        .camera-controls button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-capture {
+            background: #e63946;
+            color: white;
+        }
+        
+        .btn-close-camera {
+            background: #333;
+            color: white;
+        }
+        
+        .btn-confirm {
+            background: #2a9d8f;
+            color: white;
+        }
+        
+        .camera-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 14px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 10, 10, 0.9));
+            border-radius: 18px;
+            padding: 18px;
+            margin: 18px 0;
+            text-align: center;
+            border: 1px solid #e63946;
+            position: relative;
+        }
+
+        .stats-card::before {
+            content: '🔴 LIVE ROUTE 🔴';
+            position: absolute;
+            top: 5px;
+            right: -20px;
+            background: #e63946;
+            color: white;
+            font-size: 8px;
+            padding: 2px 20px;
+            transform: rotate(45deg);
+            font-weight: bold;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 12px;
+        }
+
+        .stat-icon {
+            font-size: clamp(1.3rem, 5vw, 1.8rem);
+            color: #e63946;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: clamp(1.3rem, 5vw, 1.8rem);
+            font-weight: bold;
+            color: #ff6b6b;
+            text-shadow: 0 0 10px #e63946;
+        }
+
+        .stat-label {
+            font-size: clamp(0.6rem, 3vw, 0.7rem);
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .hospital-beds-card {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(30, 10, 10, 0.8));
+            border-radius: 16px;
+            padding: 12px 15px;
+            margin: 15px 0;
+            border: 1px solid #e63946;
+            display: none;
+        }
+        
+        .hospital-beds-card.active {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .beds-row {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        
+        .bed-item {
+            flex: 1;
+            text-align: center;
+            background: rgba(0,0,0,0.5);
+            padding: 8px;
+            border-radius: 10px;
+        }
+        
+        .bed-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+        
+        .bed-label {
+            font-size: 10px;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+        
+        .hospital-name-small {
+            font-size: 12px;
+            color: #ffc107;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .traffic-info {
+            margin-top: 12px;
+            padding: 8px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            font-size: 11px;
+            color: #ffc107;
+            text-align: center;
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: clamp(0.7rem, 3.5vw, 0.85rem);
+            font-weight: bold;
+            animation: fadeIn 0.4s ease;
+            display: none;
+        }
+
+        .alert-status-bar {
+            background: rgba(255,152,0,0.2);
+            border: 1px solid #ff9800;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        .alert-status-bar.active {
+            display: block;
+            animation: pulseOrange 1.5s infinite;
+        }
+
+        @keyframes pulseOrange {
+            0%,100% { border-color: #ff9800; box-shadow: 0 0 5px #ff9800; }
+            50% { border-color: #ffc107; box-shadow: 0 0 15px #ff9800; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .status-success {
+            background: rgba(0, 255, 136, 0.15);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+        }
+
+        .status-error {
+            background: rgba(230, 57, 70, 0.15);
+            color: #ff6b6b;
+            border: 1px solid #e63946;
+        }
+
+        .status-info {
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+            border: 1px solid #ffc107;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #e63946;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 8px; }
+            .btn-group { flex-direction: column; gap: 10px; }
+            .stats-row { flex-direction: column; gap: 10px; }
+            .card-body { padding: 15px; }
+            .beds-row { flex-direction: column; gap: 8px; }
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: #e63946; border-radius: 10px; }
+        
+        .leaflet-routing-container {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="header">
+        <h1>
+            <i class="fas fa-ambulance"></i> 
+            🚨 RESCUELINK 🚨
+            <i class="fas fa-skull-crossbones"></i>
+        </h1>
+        <p>🛰️ SATELLITE VIEW | REAL ROAD ROUTING | LIVE TRACKING 🛰️</p>
+    </div>
+
+    <div class="map-wrapper">
+        <div id="map"></div>
+    </div>
+
+    <div class="card-body">
+        <div id="alertStatusBar" class="alert-status-bar">
+            <i class="fas fa-exclamation-triangle"></i> 
+            <strong>⚠️ ACTIVE EMERGENCY</strong><br>
+            <span id="activeHospitalName">-</span><br>
+            <small>Complete current alert before sending new</small>
+        </div>
+
+        <div id="hospitalBedsCard" class="hospital-beds-card">
+            <div class="hospital-name-small" id="selectedHospitalName">-</div>
+            <div class="beds-row">
+                <div class="bed-item">
+                    <div class="bed-number" id="icuBedsCount">--</div>
+                    <div class="bed-label">ICU BEDS AVAILABLE</div>
+                </div>
+                <div class="bed-item">
+                    <div class="bed-number" id="genBedsCount">--</div>
+                    <div class="bed-label">GENERAL BEDS</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label><i class="fas fa-map-marker-alt"></i> 📍 SELECT DISTRICT</label>
+            <select id="district">
+                <option value="">-- SELECT DISTRICT --</option>
+                {% for d in districts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label><i class="fas fa-hospital"></i> 🏥 SELECT HOSPITAL</label>
+            <select id="hospital">
+                <option value="">-- SELECT HOSPITAL --</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label><i class="fas fa-chart-line"></i> ⚕️ CASE SEVERITY</label>
+            <select id="caseType">
+                <option value="🔴 CRITICAL EMERGENCY - CODE RED">🔴 CRITICAL EMERGENCY - CODE RED</option>
+                <option value="🟠 SERIOUS - CODE ORANGE">🟠 SERIOUS - CODE ORANGE</option>
+                <option value="🟡 MODERATE - CODE YELLOW">🟡 MODERATE - CODE YELLOW</option>
+            </select>
+        </div>
+
+        <button class="btn btn-gps" onclick="getGPS()" id="gpsBtn">
+            <i class="fas fa-location-dot"></i> 🛰️ GET MY LIVE LOCATION
+            <span id="gpsSpinner" style="display: none;"><span class="loading-spinner"></span></span>
+        </button>
+
+        <button class="btn btn-unknown" onclick="openUnknownCaseModal()" id="unknownBtn">
+            <i class="fas fa-user-secret"></i> 🏥 UNKNOWN / UNCONSCIOUS PATIENT
+            <i class="fas fa-camera"></i>
+        </button>
+
+        <div class="stats-card">
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-road"></i></div>
+                    <div class="stat-value" id="dist">--</div>
+                    <div class="stat-label">ROAD DISTANCE</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-value" id="eta">--</div>
+                    <div class="stat-label">ETA (MINUTES)</div>
+                </div>
+            </div>
+            <div class="traffic-info" id="trafficInfo">
+                <i class="fas fa-car-side"></i> Select hospital and get location
+            </div>
+        </div>
+
+        <button class="btn btn-alert" onclick="sendAlert()" id="alertBtn">
+            <i class="fas fa-bell"></i> 🚨 ACTIVATE EMERGENCY ALERT 🚨
+            <i class="fas fa-arrow-right"></i>
+        </button>
+
+        <button class="btn btn-reaching" onclick="sendReachingAlert()" id="reachingBtn" disabled>
+            <i class="fas fa-hourglass-half"></i> ⏰ REACHING ALERT
+            <i class="fas fa-ambulance"></i>
+        </button>
+
+        <div class="btn-group">
+            <button class="btn btn-reach" onclick="reachAlert()" id="reachBtn" disabled>
+                <i class="fas fa-check-circle"></i> ✅ REACHED HOSPITAL
+            </button>
+            <button class="btn btn-cancel" onclick="cancelAlert()" id="cancelBtn" disabled>
+                <i class="fas fa-ban"></i> ❌ CANCEL ALERT
+            </button>
+        </div>
+
+        <div id="statusMessage" class="status-message"></div>
+    </div>
+</div>
+
+<!-- Camera Modal -->
+<div id="cameraModal" class="camera-modal">
+    <div class="camera-container">
+        <div id="cameraLoading" class="camera-loading" style="display: none;">
+            <i class="fas fa-spinner fa-spin"></i> Starting camera...
+        </div>
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <canvas id="cameraCanvas" style="display: none;"></canvas>
+        <img id="cameraPreview" class="camera-preview" alt="Preview">
+        <div class="camera-controls">
+            <button class="btn-capture" onclick="capturePhoto()"><i class="fas fa-camera"></i> Capture</button>
+            <button class="btn-confirm" onclick="confirmPhoto()" style="display:none;" id="confirmBtn"><i class="fas fa-check"></i> Confirm</button>
+            <button class="btn-close-camera" onclick="closeCamera()"><i class="fas fa-times"></i> Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    var socket = io();
+    
+    var map = L.map('map').setView([11.1271, 78.6569], 7);
+    
+    L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '&copy; Google Satellite | RescueLink Emergency'
+    }).addTo(map);
+    
+    var userLat = null, userLng = null;
+    var marker = null;
+    var watchId = null;
+    var routingControl = null;
+    
+    var hasActiveAlert = false;
+    var currentAlertHospital = null;
+    
+    // Ambulance Identity - Consistent for this device
+var AMBULANCE_NAME = localStorage.getItem('rescue_ambulance_name');
+if (!AMBULANCE_NAME) {
+    var prefixes = ['SKS', 'EMT', 'MED', 'LIFE', 'SAVE', 'VIB'];
+    var randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    var randomNum = Math.floor(Math.random() * 900) + 100;
+    AMBULANCE_NAME = `${randomPrefix}-${randomNum}`;
+    localStorage.setItem('rescue_ambulance_name', AMBULANCE_NAME);
+}
+
+var AMBULANCE_NUMBER = localStorage.getItem('rescue_ambulance_number');
+if (!AMBULANCE_NUMBER) {
+    AMBULANCE_NUMBER = 'TN-' + Math.floor(Math.random() * 90 + 10) + '-AMB-' + Math.floor(Math.random() * 900 + 100);
+    localStorage.setItem('rescue_ambulance_number', AMBULANCE_NUMBER);
+}
+
+console.log("🚑 Ambulance Identity:", AMBULANCE_NAME, AMBULANCE_NUMBER);
+    
+    // ============ GPS LOCATION FUNCTIONS ============
+    
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        var R = 6371;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLon = (lon2 - lon1) * Math.PI / 180;
+        var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+    
+    function showStatusMessage(msg, type) {
+        var div = document.getElementById('statusMessage');
+        div.innerHTML = msg;
+        div.className = 'status-message status-' + type;
+        div.style.display = 'block';
+        setTimeout(() => {
+            div.style.display = 'none';
+        }, 4000);
+    }
+    
+    function fetchHospitalBedStatus(hospitalName) {
+        if (!hospitalName) return;
+        
+        fetch(`/get_hospital_beds?hospital_name=${encodeURIComponent(hospitalName)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('icuBedsCount').innerText = data.icu_beds || '0';
+                    document.getElementById('genBedsCount').innerText = data.gen_beds || '0';
+                    document.getElementById('selectedHospitalName').innerHTML = `<i class="fas fa-hospital"></i> ${hospitalName.toUpperCase()}`;
+                    document.getElementById('hospitalBedsCard').classList.add('active');
+                } else {
+                    document.getElementById('hospitalBedsCard').classList.remove('active');
+                }
+            })
+            .catch(err => {
+                console.log("Error fetching bed status:", err);
+                document.getElementById('hospitalBedsCard').classList.remove('active');
+            });
+    }
+    
+    function updateAlertStateUI() {
+        var alertBtn = document.getElementById('alertBtn');
+        var reachingBtn = document.getElementById('reachingBtn');
+        var reachBtn = document.getElementById('reachBtn');
+        var cancelBtn = document.getElementById('cancelBtn');
+        var hospitalSelect = document.getElementById('hospital');
+        var districtSelect = document.getElementById('district');
+        var statusBar = document.getElementById('alertStatusBar');
+        var activeHospitalSpan = document.getElementById('activeHospitalName');
+        
+        if (hasActiveAlert) {
+            alertBtn.disabled = true;
+            alertBtn.style.opacity = '0.5';
+            alertBtn.style.cursor = 'not-allowed';
+            alertBtn.innerHTML = '<i class="fas fa-ban"></i> ALERT ACTIVE - COMPLETE FIRST';
+            
+            reachingBtn.disabled = false;
+            reachingBtn.style.opacity = '1';
+            
+            reachBtn.disabled = false;
+            cancelBtn.disabled = false;
+            hospitalSelect.disabled = true;
+            districtSelect.disabled = true;
+            hospitalSelect.style.opacity = '0.5';
+            districtSelect.style.opacity = '0.5';
+            
+            statusBar.classList.add('active');
+            activeHospitalSpan.innerHTML = currentAlertHospital ? currentAlertHospital.toUpperCase() : '-';
+            statusBar.style.display = 'block';
+        } else {
+            alertBtn.disabled = false;
+            alertBtn.style.opacity = '1';
+            alertBtn.style.cursor = 'pointer';
+            alertBtn.innerHTML = '<i class="fas fa-bell"></i> 🚨 ACTIVATE EMERGENCY ALERT 🚨 <i class="fas fa-arrow-right"></i>';
+            
+            reachingBtn.disabled = true;
+            reachingBtn.style.opacity = '0.5';
+            
+            reachBtn.disabled = true;
+            cancelBtn.disabled = true;
+            hospitalSelect.disabled = false;
+            districtSelect.disabled = false;
+            hospitalSelect.style.opacity = '1';
+            districtSelect.style.opacity = '1';
+            
+            statusBar.classList.remove('active');
+            statusBar.style.display = 'none';
+        }
+    }
+    
+    document.getElementById('district').onchange = function() {
+        if (hasActiveAlert) {
+            showStatusMessage("⚠️ Complete current alert first!", "error");
+            return;
+        }
+        
+        var district = this.value;
+        if (!district) return;
+        
+        showStatusMessage("📋 LOADING HOSPITALS...", "info");
+        
+        fetch(`/get_hospitals_data?district=${district}`)
+            .then(res => res.json())
+            .then(data => {
+                var hospSelect = document.getElementById('hospital');
+                hospSelect.innerHTML = '<option value="">-- SELECT HOSPITAL --</option>';
+                data.forEach(h => {
+                    var opt = document.createElement('option');
+                    opt.value = h.hospital_name;
+                    opt.text = h.hospital_name.toUpperCase();
+                    opt.dataset.lat = h.latitude;
+                    opt.dataset.lng = h.longitude;
+                    hospSelect.appendChild(opt);
+                });
+                showStatusMessage(`✅ ${data.length} HOSPITALS FOUND`, "success");
+            })
+            .catch(err => {
+                showStatusMessage("❌ ERROR LOADING HOSPITALS", "error");
+            });
+    };
+    
+    document.getElementById('hospital').onchange = function() {
+        var opt = this.options[this.selectedIndex];
+        if (opt.value) {
+            fetchHospitalBedStatus(opt.value);
+            if (userLat && !hasActiveAlert) {
+                calculateRoute();
+            }
+        } else {
+            document.getElementById('hospitalBedsCard').classList.remove('active');
+        }
+    };
+    
+    function getGPS() {
+        if (hasActiveAlert) {
+            showStatusMessage("⚠️ Complete current alert first!", "error");
+            return;
+        }
+        
+        var btn = document.getElementById('gpsBtn');
+        var spinner = document.getElementById('gpsSpinner');
+        btn.disabled = true;
+        spinner.style.display = 'inline-block';
+        
+        showStatusMessage("📍 Acquiring GPS location...", "info");
+        
+        if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
+        }
+        
+        var options = {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        };
+        
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                userLat = pos.coords.latitude;
+                userLng = pos.coords.longitude;
+                var accuracy = pos.coords.accuracy;
+                
+                currentLocation = `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`;
+                
+                console.log("✅ GPS Location:", userLat, userLng);
+                
+                if (marker) map.removeLayer(marker);
+                
+                var ambulanceIcon = L.divIcon({
+                    html: '<div style="background:#e63946; width:24px; height:24px; border-radius:50%; border:3px solid white; box-shadow:0 0 15px #e63946; text-align:center; line-height:22px;"><i class="fas fa-ambulance" style="color:white; font-size:10px;"></i></div>',
+                    iconSize: [30, 30]
+                });
+                
+                marker = L.marker([userLat, userLng], { icon: ambulanceIcon })
+                    .addTo(map)
+                    .bindPopup("<b>🚑 AMBULANCE</b><br>📍 Current Location")
+                    .openPopup();
+                    
+                map.flyTo([userLat, userLng], 16);
+                showStatusMessage(`✅ GPS LOCKED!`, "success");
+                calculateRoute();
+                startLiveTracking();
+                
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            },
+            function(err) {
+                console.warn("GPS Error:", err.message);
+                userLat = 11.6705;
+                userLng = 78.1431;
+                currentLocation = `${userLat}, ${userLng}`;
+                
+                if (!marker) {
+                    marker = L.marker([userLat, userLng]).addTo(map).bindPopup("📍 Default Location");
+                    map.flyTo([userLat, userLng], 13);
+                }
+                
+                calculateRoute();
+                startLiveTracking();
+                showStatusMessage(`⚠️ Using default location. Please enable GPS.`, "error");
+                
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            },
+            options
+        );
+    }
+    
+    function startLiveTracking() {
+        if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
+        }
+        
+        watchId = navigator.geolocation.watchPosition(
+            function(pos) {
+                userLat = pos.coords.latitude;
+                userLng = pos.coords.longitude;
+                if (marker) {
+                    marker.setLatLng([userLat, userLng]);
+                }
+                calculateRoute();
+                
+                // Send live location update to hospital if alert active
+                if (hasActiveAlert && currentAlertHospital) {
+                    var distText = document.getElementById('dist').innerText;
+                    var etaText = document.getElementById('eta').innerText;
+                    
+                    socket.emit('location_update', {
+                        hospital: currentAlertHospital,
+                        uLat: userLat,
+                        uLng: userLng,
+                        dist: distText,
+                        eta: etaText + " min",
+                        ambName: AMBULANCE_NAME,
+                        ambNumber: AMBULANCE_NUMBER
+                    });
+                }
+            },
+            function(err) {
+                console.log("Watch error:", err);
+            },
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        );
+    }
+    
+    function calculateRoute() {
+        var hospSelect = document.getElementById('hospital');
+        var option = hospSelect.options[hospSelect.selectedIndex];
+        
+        if (!userLat || !option.value) {
+            return;
+        }
+        
+        var hLat = parseFloat(option.dataset.lat);
+        var hLng = parseFloat(option.dataset.lng);
+        
+        if (isNaN(hLat) || isNaN(hLng)) {
+            return;
+        }
+        
+        if (routingControl) {
+            map.removeControl(routingControl);
+        }
+        
+        routingControl = L.Routing.control({
+            waypoints: [
+                L.latLng(userLat, userLng),
+                L.latLng(hLat, hLng)
+            ],
+            routeWhileDragging: false,
+            showAlternatives: false,
+            show: true,
+            lineOptions: {
+                styles: [{ color: '#e63946', weight: 5, opacity: 0.9 }]
+            },
+            router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1',
+                profile: 'driving'
+            }),
+            createMarker: function() { return null; }
+        }).on('routesfound', function(e) {
+            var route = e.routes[0];
+            var distanceKm = (route.summary.totalDistance / 1000).toFixed(1);
+            var timeMin = Math.round(route.summary.totalTime / 60);
+            
+            if (timeMin < 1 && distanceKm > 0) {
+                timeMin = 1;
+            }
+            
+            document.getElementById('dist').innerHTML = distanceKm + " KM";
+            document.getElementById('eta').innerHTML = timeMin;
+            
+            var trafficInfo = document.getElementById('trafficInfo');
+            trafficInfo.innerHTML = `<i class="fas fa-car-side"></i> Road: ${distanceKm} km | ETA: ${timeMin} min`;
+            trafficInfo.style.color = "#ffc107";
+            
+            console.log(`🚗 Route: ${distanceKm} km, ${timeMin} min`);
+            
+        }).on('routingerror', function(e) {
+            var R = 6371;
+            var dLat = (hLat - userLat) * Math.PI / 180;
+            var dLon = (hLng - userLng) * Math.PI / 180;
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(userLat * Math.PI/180) * Math.cos(hLat * Math.PI/180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            var dist = R * c;
+            var eta = Math.max(1, Math.round(dist * 2));
+            document.getElementById('dist').innerHTML = dist.toFixed(1) + " KM";
+            document.getElementById('eta').innerHTML = eta;
+            document.getElementById('trafficInfo').innerHTML = `<i class="fas fa-road"></i> ${dist.toFixed(1)} km (straight) | ETA: ${eta} min`;
+        }).addTo(map);
+    }
+    
+    // Camera Functions
+    function openUnknownCaseModal() {
+        var hospital = document.getElementById('hospital').value;
+        if (!hospital) {
+            showStatusMessage("❌ SELECT A HOSPITAL FIRST!", "error");
+            return;
+        }
+        
+        if (!userLat) {
+            showStatusMessage("📍 GET YOUR LOCATION FIRST!", "error");
+            return;
+        }
+        
+        document.getElementById('cameraModal').classList.add('active');
+        startBackCamera();
+    }
+    
+    function startBackCamera() {
+        var loading = document.getElementById('cameraLoading');
+        loading.style.display = 'block';
+        
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        
+        navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: { exact: "environment" },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            } 
+        })
+        .then(function(mediaStream) {
+            stream = mediaStream;
+            var video = document.getElementById('cameraVideo');
+            video.srcObject = stream;
+            video.onloadedmetadata = function() {
+                video.play();
+                loading.style.display = 'none';
+            };
+        })
+        .catch(function(err) {
+            console.log("Back camera error:", err);
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(mediaStream) {
+                    stream = mediaStream;
+                    var video = document.getElementById('cameraVideo');
+                    video.srcObject = stream;
+                    video.onloadedmetadata = function() {
+                        video.play();
+                        loading.style.display = 'none';
+                    };
+                })
+                .catch(function(err2) {
+                    loading.style.display = 'none';
+                    showStatusMessage("❌ Cannot access camera.", "error");
+                    closeCamera();
+                });
+        });
+    }
+    
+    function capturePhoto() {
+        var video = document.getElementById('cameraVideo');
+        var canvas = document.getElementById('cameraCanvas');
+        var preview = document.getElementById('cameraPreview');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        capturedPhoto = canvas.toDataURL('image/jpeg', 0.9);
+        preview.src = capturedPhoto;
+        preview.style.display = 'block';
+        video.style.display = 'none';
+        
+        document.querySelector('.btn-capture').style.display = 'none';
+        document.getElementById('confirmBtn').style.display = 'block';
+    }
+    
+    function confirmPhoto() {
+    if (capturedPhoto) {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        
+        var hospital = document.getElementById('hospital').value;
+        var location = currentLocation || `${userLat}, ${userLng}`;
+        
+        showStatusMessage("📤 SUBMITTING UNKNOWN CASE...", "info");
+        
+        fetch(capturedPhoto)
+            .then(res => res.blob())
+            .then(blob => {
+                var formData = new FormData();
+                formData.append('target_hospital', hospital);
+                formData.append('location', location);
+                formData.append('patient_photo', blob, 'patient_photo.jpg');
+                formData.append('ambulance_name', AMBULANCE_NAME);  // ✅ Send ambulance name
+                
+                fetch('/report_unknown', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showStatusMessage("✅ UNKNOWN CASE REPORTED SUCCESSFULLY!", "success");
+                        alert("✅ Unknown patient case reported!\n\nPhoto and location sent to hospital.");
+                        closeCamera();
+                    } else {
+                        showStatusMessage("❌ Error reporting case: " + (data.message || "Unknown error"), "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Fetch error:", err);
+                    showStatusMessage("❌ Network error. Please try again.", "error");
+                });
+            });
+    }
+}
+    
+    function closeCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        document.getElementById('cameraModal').classList.remove('active');
+        document.getElementById('cameraVideo').style.display = 'block';
+        document.getElementById('cameraPreview').style.display = 'none';
+        document.querySelector('.btn-capture').style.display = 'block';
+        document.getElementById('confirmBtn').style.display = 'none';
+        capturedPhoto = null;
+        
+        var video = document.getElementById('cameraVideo');
+        if (video.srcObject) {
+            video.srcObject = null;
+        }
+    }
+    
+    function sendAlert() {
+        var hospital = document.getElementById('hospital').value;
+        if (!hospital) {
+            showStatusMessage("❌ SELECT A HOSPITAL FIRST!", "error");
+            return;
+        }
+        
+        if (hasActiveAlert) {
+            showStatusMessage("❌ Cannot send new alert! Complete current alert first!", "error");
+            alert("⚠️ ACTIVE ALERT EXISTS!\n\nPlease click REACHED or CANCEL first.");
+            return;
+        }
+        
+        if (!userLat) {
+            showStatusMessage("📍 GET YOUR LOCATION FIRST!", "error");
+            return;
+        }
+        
+        var distText = document.getElementById('dist').innerText;
+        if (distText === "--") {
+            showStatusMessage("⏳ CALCULATING ROUTE...", "info");
+            return;
+        }
+        
+        var alertBtn = document.getElementById('alertBtn');
+        alertBtn.disabled = true;
+        alertBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 🚨 SENDING... 🚨';
+        
+        var alertData = {
+            hospital: hospital,
+            case: document.getElementById('caseType').value,
+            ambName: AMBULANCE_NAME,
+            ambNumber: AMBULANCE_NUMBER,
+            dist: distText,
+            eta: document.getElementById('eta').innerText + " MIN",
+            traffic: document.getElementById('trafficInfo').innerText,
+            uLat: userLat,
+            uLng: userLng
+        };
+        
+        console.log("🚨 SENDING ALERT:", alertData);
+        
+        hasActiveAlert = true;
+        currentAlertHospital = hospital;
+        updateAlertStateUI();
+        
+        socket.emit('emergency_alert', alertData);
+        
+        setTimeout(() => {
+            showStatusMessage(`✅🚨 ALERT ACTIVATED! DISPATCHING TO ${hospital.toUpperCase()}! 🚨✅`, "success");
+            alertBtn.disabled = false;
+            alertBtn.innerHTML = '<i class="fas fa-bell"></i> 🚨 ACTIVATE EMERGENCY ALERT 🚨 <i class="fas fa-arrow-right"></i>';
+        }, 500);
+    }
+    
+    function sendReachingAlert() {
+        if (!hasActiveAlert) {
+            showStatusMessage("❌ No active alert!", "error");
+            return;
+        }
+        
+        var hospital = document.getElementById('hospital').value;
+        var etaValue = document.getElementById('eta').innerText;
+        
+        var reachingData = {
+            hospital: hospital,
+            eta: etaValue,
+            ambName: AMBULANCE_NAME,
+            ambNumber: AMBULANCE_NUMBER
+        };
+        
+        socket.emit('reaching_alert', reachingData);
+        
+        showStatusMessage(`✅ REACHING ALERT SENT!`, "success");
+        alert(`⏰ REACHING ALERT SENT!\n\nAmbulance arriving in ${etaValue} minutes.`);
+        
+        document.getElementById('reachingBtn').disabled = true;
+        document.getElementById('reachingBtn').style.opacity = '0.5';
+    }
+    
+    function reachAlert() {
+        if (!hasActiveAlert) {
+            showStatusMessage("❌ No active alert!", "error");
+            return;
+        }
+        
+        var hospital = document.getElementById('hospital').value;
+        fetch(`/signal_status/${hospital}/reach`);
+        
+        hasActiveAlert = false;
+        currentAlertHospital = null;
+        updateAlertStateUI();
+        
+        showStatusMessage(`✅ PATIENT REACHED HOSPITAL! 🏥✅`, "success");
+        alert("✅ REACHED signal sent!\n\nAlert completed.");
+    }
+    
+    function cancelAlert() {
+        if (!hasActiveAlert) {
+            showStatusMessage("❌ No active alert!", "error");
+            return;
+        }
+        
+        var hospital = document.getElementById('hospital').value;
+        fetch(`/signal_status/${hospital}/cancel`);
+        
+        hasActiveAlert = false;
+        currentAlertHospital = null;
+        updateAlertStateUI();
+        
+        showStatusMessage(`❌ ALERT CANCELLED! 🚨❌`, "info");
+        alert("❌ CANCEL signal sent!\n\nAlert cancelled.");
+    }
+    
+    socket.on('connect', function() {
+        console.log('✅ Connected to server');
+        showStatusMessage("🔴 SYSTEM ARMED 🔴", "success");
+    });
+    
+    socket.on('disconnect', function() {
+        showStatusMessage("⚠️ CONNECTION LOST!", "error");
+    });
+    
+    updateAlertStateUI();
+</script>
+</body>
+</html>

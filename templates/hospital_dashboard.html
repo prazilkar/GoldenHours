@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueLink Portal | {{ hosp.hospital_name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        :root { --danger: #ff0000; --blue: #0044ff; --gold: #ffc107; --white: #ffffff; --success: #2e7d32; --warning: #ff9800; --info: #2196f3; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        
+        body { 
+            background: #000; 
+            color: white; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            min-height: 100vh; 
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .bg-hospital {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: url('https://images.unsplash.com/photo-1512678080530-7760d81faba6?q=80&w=2000&auto=format&fit=crop') center/cover no-repeat;
+            opacity: 0.4;
+            z-index: -2;
+            filter: brightness(0.4) contrast(1.2);
+        }
+
+        .siren-glow { position: fixed; top: 0; width: 50vw; height: 100vh; filter: blur(150px); z-index: -1; opacity: 0.3; }
+        .siren-red { left: 0; background: var(--danger); animation: blinkSiren 0.8s infinite alternate; }
+        .siren-blue { right: 0; background: var(--blue); animation: blinkSiren 0.8s infinite alternate-reverse; }
+        @keyframes blinkSiren { 0% { opacity: 0.1; } 100% { opacity: 0.6; } }
+
+        .top-siren-bar { position: fixed; top: 0; left: 0; width: 100%; height: 8px; display: flex; z-index: 100; }
+        .seg { flex: 1; height: 100%; }
+        .seg-red { background: var(--danger); animation: lightFlash 0.5s infinite; }
+        .seg-blue { background: var(--blue); animation: lightFlash 0.5s infinite; animation-delay: 0.25s; }
+        @keyframes lightFlash { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; box-shadow: 0 0 20px currentColor; } }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1400px;
+            margin-top: 40px;
+            z-index: 10;
+        }
+
+        .card { 
+            background: rgba(10, 12, 16, 0.88); 
+            padding: 30px; border-radius: 24px; 
+            box-shadow: 0 25px 60px rgba(0,0,0,0.9); 
+            border: 1px solid rgba(255,255,255,0.1); 
+            border-top: 6px solid var(--danger);
+            backdrop-filter: blur(15px);
+            animation: cardEntrance 0.8s ease-out;
+        }
+
+        @keyframes cardEntrance { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+
+        .monitor-card { grid-column: span 1; height: fit-content; }
+        .emergency-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .emergency-table th { text-align: left; padding: 12px; font-size: 11px; color: var(--gold); text-transform: uppercase; border-bottom: 1px solid #333; }
+        .emergency-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; vertical-align: middle; }
+        .patient-img { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; border: 2px solid var(--danger); cursor: pointer; transition: transform 0.3s; }
+        .patient-img:hover { transform: scale(1.05); }
+
+        .status-select {
+            background: #1a1a1a; 
+            color: white; 
+            border: 1px solid #444; 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+            font-size: 13px; 
+            cursor: pointer;
+        }
+        
+        .status-pending { border-color: #ff9800; color: #ff9800; }
+        .status-under-verification { border-color: #2196f3; color: #2196f3; }
+        .status-proved { border-color: #4caf50; color: #4caf50; }
+
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h2 { font-size: 24px; color: var(--white); text-transform: uppercase; letter-spacing: 1px; }
+        .header p { color: var(--gold); font-size: 13px; font-weight: bold; }
+        .bed-stats { display: flex; gap: 12px; margin-bottom: 20px; }
+        .stat-box { flex: 1; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .stat-box h3 { font-size: 26px; color: var(--danger); font-weight: 800; }
+        .stat-box small { font-size: 10px; color: #aaa; text-transform: uppercase; }
+        .btn-update { width: 100%; background: var(--danger); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; text-transform: uppercase; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-update:hover { background: #ff1a1a; transform: translateY(-2px); }
+        .link-section { margin-top: 20px; padding: 15px; background: rgba(255, 193, 7, 0.05); border-radius: 12px; border: 1px dashed var(--gold); }
+        .link-title { font-size: 11px; color: var(--gold); font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
+        .link-box { background: #000; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 10px; color: #4ade80; word-break: break-all; margin-bottom: 10px; border: 1px solid #222; }
+        .btn-view { display: block; text-align: center; background: var(--white); color: #000; padding: 8px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 12px; transition: 0.3s; }
+
+        #toast { position: fixed; top: 25px; right: 25px; background: var(--success); color: white; padding: 15px 25px; border-radius: 10px; z-index: 10000; font-weight: bold; animation: bounceIn 0.6s forwards; }
+        @keyframes bounceIn { 0% { transform: translateX(150%); } 100% { transform: translateX(0); } }
+
+        #emergency-alert { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 420px; background: #d32f2f; color: white; padding: 25px; border-radius: 20px; box-shadow: 0 0 50px rgba(211, 47, 47, 0.9); z-index: 1100; text-align: center; border: 2px solid white; animation: alertPulse 0.4s infinite alternate; }
+        @keyframes alertPulse { from { scale: 1; } to { scale: 1.05; } }
+
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 10001;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-modal.active {
+            display: flex;
+        }
+        .image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 10px;
+            border: 2px solid var(--danger);
+        }
+        .image-modal .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 40px;
+            color: white;
+            cursor: pointer;
+        }
+
+        @media (max-width: 900px) {
+            .main-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-hospital"></div>
+    <div class="siren-glow siren-red"></div>
+    <div class="siren-glow siren-blue"></div>
+
+    <div class="top-siren-bar">
+        <div class="seg seg-red"></div><div class="seg seg-blue"></div>
+        <div class="seg seg-red"></div><div class="seg seg-blue"></div>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div id="toast"><i class="fas fa-check-circle"></i> {{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div id="emergency-alert">
+        <h2>🚨 EMERGENCY ALERT!</h2>
+        <div style="margin: 15px 0; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 10px;">
+            <p id="alert-msg" style="font-weight: 800; font-size: 18px;">INBOUND AMBULANCE!</p>
+            <p>Dist: <span id="alert-dist">--</span> | ETA: <span id="alert-eta">--</span></p>
+        </div>
+        <button onclick="dismissAlert()" style="width:100%; padding:10px; border-radius:8px; border:none; cursor:pointer; font-weight:800; background:white; color:#d32f2f;">Acknowledge</button>
+    </div>
+
+    <div id="imageModal" class="image-modal">
+        <span class="close-modal" onclick="closeImageModal()">&times;</span>
+        <img id="modalImage" src="" alt="Patient Photo">
+    </div>
+
+    <div class="main-container">
+        <div class="card">
+            <div class="header">
+                <p style="font-size: 9px; letter-spacing: 2px; color: #888;">RESCUELINK SECURE UNIT</p>
+                <h2>{{ hosp.hospital_name | upper }}</h2>
+                <p><i class="fas fa-hospital-alt"></i> {{ hosp.district }}</p>
+            </div>
+
+            <div class="bed-stats">
+                <div class="stat-box"><small>ICU BEDS</small><h3>{{ hosp.icu_beds }}</h3></div>
+                <div class="stat-box"><small>GENERAL</small><h3>{{ hosp.gen_beds }}</h3></div>
+            </div>
+
+            <form action="/update_beds" method="POST">
+                <div style="margin-bottom: 12px;">
+                    <label style="display:block; font-size:11px; color:#999; margin-bottom:5px;">ICU BEDS</label>
+                    <input type="number" name="icu_beds" value="{{ hosp.icu_beds }}" style="width:100%; padding:12px; background:#15181c; border:1px solid #333; border-radius:8px; color:white;" required>
+                </div>
+                <div style="margin-bottom: 18px;">
+                    <label style="display:block; font-size:11px; color:#999; margin-bottom:5px;">GENERAL BEDS</label>
+                    <input type="number" name="gen_beds" value="{{ hosp.gen_beds }}" style="width:100%; padding:12px; background:#15181c; border:1px solid #333; border-radius:8px; color:white;" required>
+                </div>
+                <button type="submit" class="btn-update"><i class="fas fa-save"></i> Update Live Status</button>
+            </form>
+
+            <div class="link-section">
+                <div class="link-title"><i class="fas fa-link"></i> Emergency Alert Page URL</div>
+                <div class="link-box">http://localhost:8080/hospital_view/{{ hosp.hospital_name }}</div>
+                <a href="/hospital_view/{{ hosp.hospital_name }}" target="_blank" class="btn-view"><i class="fas fa-external-link-alt"></i> OPEN AMBULANCE ALERT PAGE</a>
+            </div>
+            <a href="/logout" style="display:block; text-align:center; margin-top:15px; color:#555; text-decoration:none; font-size:12px;"><i class="fas fa-sign-out-alt"></i> Secure Logout</a>
+        </div>
+
+        <div class="card monitor-card">
+            <h2 style="font-size: 18px; color: var(--gold); text-transform: uppercase; margin-bottom: 15px;"><i class="fas fa-heartbeat"></i> Live Emergency Monitor</h2>
+            <div style="overflow-x: auto;">
+                <table class="emergency-table">
+                    <thead>
+                        <tr>
+                            <th>Photo</th>
+                            <th>Ambulance</th>
+                            <th>Location</th>
+                            <th>Status Update</th>
+                        </tr>
+                    </thead>
+                    <tbody id="emergency-body">
+                        {% for case in unknown_list %}
+                        {% if case.hospital_name == hosp.hospital_name and case.status != 'Proved' %}
+                        <tr id="row-{{ case.case_id }}">
+                            <td>
+                                <img src="/static/images/patients/{{ case.photo }}" class="patient-img" 
+                                     onclick="showImageModal('/static/images/patients/{{ case.photo }}')"
+                                     style="width:60px; height:60px; border-radius:10px; border:1px solid #ff0000; cursor:pointer;">
+                            </td>
+                            <td><b style="color:white">{{ case.rescue_ambulance }}</b></td>
+                            <td><small>{{ case.location }}</small></td>
+                            <td>
+                                <select class="status-select 
+                                    {% if case.status == 'Pending' %}status-pending
+                                    {% elif case.status == 'Under Verification' %}status-under-verification
+                                    {% elif case.status == 'Proved' %}status-proved
+                                    {% endif %}" 
+                                    onchange="updateEmergencyStatus('{{ case.case_id }}', this.value)">
+                                    <option value="Pending" {% if case.status == 'Pending' %}selected{% endif %}>⏳ Pending</option>
+                                    <option value="Under Verification" {% if case.status == 'Under Verification' %}selected{% endif %}>🔍 Under Verification</option>
+                                    <option value="Proved" {% if case.status == 'Proved' %}selected{% endif %}>✅ Proved - Clear</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% set hospital_cases = unknown_list|selectattr("hospital_name", "equalto", hosp.hospital_name)|list %}
+            {% set active_cases = hospital_cases|selectattr("status", "ne", "Proved")|list %}
+            {% if active_cases|length == 0 %}
+            <div style="text-align:center; padding:40px; color:#666;">
+                <i class="fas fa-inbox" style="font-size:48px; margin-bottom:15px;"></i>
+                <p>No unknown cases reported for {{ hosp.hospital_name }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <audio id="alert-sound" src="https://www.soundjay.com/buttons/beep-01a.mp3" preload="auto"></audio>
+
+    <script>
+        setTimeout(() => { 
+            let t = document.getElementById('toast'); 
+            if(t) { t.style.transition = "0.5s"; t.style.transform = "translateX(150%)"; setTimeout(() => t.remove(), 500); }
+        }, 3000);
+
+        var socket = io();
+        socket.emit('join', { room: "{{ hosp.hospital_name }}" });
+        socket.on('emergency_alert', function(data) {
+            document.getElementById('emergency-alert').style.display = 'block';
+            document.getElementById('alert-dist').innerText = data.dist;
+            document.getElementById('alert-eta').innerText = data.eta;
+            document.getElementById('alert-sound').play();
+            document.querySelectorAll('.seg').forEach(s => s.style.animationDuration = '0.2s');
+        });
+
+        function dismissAlert() {
+            document.getElementById('emergency-alert').style.display = 'none';
+            document.getElementById('alert-sound').pause();
+            document.querySelectorAll('.seg').forEach(s => s.style.animationDuration = '0.5s');
+        }
+
+        function showImageModal(imageSrc) {
+            document.getElementById('modalImage').src = imageSrc;
+            document.getElementById('imageModal').classList.add('active');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+
+        function updateEmergencyStatus(caseId, newStatus) {
+            console.log("Updating case:", caseId, "to status:", newStatus);
+            
+            fetch('/update_case_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: caseId, status: newStatus })
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log("Response:", data);
+                if(data.status === 'success') {
+                    if(newStatus === 'Proved') {
+                        // ✅ Remove the row immediately
+                        var row = document.getElementById('row-' + caseId);
+                        if (row) {
+                            row.remove();
+                            showToast("✅ Case marked as PROVED! Removed from list.", "success");
+                        }
+                        // Check if table is empty and show message
+                        var tbody = document.getElementById('emergency-body');
+                        if (tbody && tbody.children.length === 0) {
+                            location.reload();
+                        }
+                    } else {
+                        showToast(`✅ Status updated to ${newStatus}`, "success");
+                    }
+                }
+            })
+            .catch(err => {
+                console.error("Error:", err);
+                showToast("❌ Error updating status", "error");
+            });
+        }
+
+        function showToast(msg, type) {
+            var toast = document.createElement('div');
+            toast.id = 'toast';
+            toast.innerHTML = '<i class="fas fa-check-circle"></i> ' + msg;
+            toast.style.background = type === 'success' ? '#2e7d32' : (type === 'error' ? '#d32f2f' : '#ff9800');
+            document.body.appendChild(toast);
+            setTimeout(() => { 
+                toast.style.transition = "0.5s"; 
+                toast.style.transform = "translateX(150%)"; 
+                setTimeout(() => toast.remove(), 500); 
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

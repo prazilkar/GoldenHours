@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueLink - Admin Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Prevents elements from leaking out of the frame */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Segoe UI', sans-serif; 
+        }
+
+        body { 
+            background: #121212; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            padding: 20px;
+        }
+
+        .card { 
+            background: #fff; 
+            padding: 40px; 
+            border-radius: 15px; 
+            width: 100%;
+            max-width: 400px; 
+            text-align: center; 
+            border-top: 10px solid #d32f2f; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+        }
+
+        .header i {
+            font-size: 55px;
+            color: #d32f2f;
+            margin-bottom: 15px;
+        }
+
+        h2 { 
+            color: #1d3557; 
+            margin-bottom: 5px; 
+            font-size: 26px; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        p { 
+            color: #666; 
+            font-size: 13px; 
+            margin-bottom: 30px; 
+            font-weight: bold;
+        }
+
+        .input-group { 
+            margin-bottom: 20px; 
+            position: relative; 
+            width: 100%; 
+        }
+
+        .input-group i { 
+            position: absolute; 
+            left: 15px; 
+            top: 16px; 
+            color: #d32f2f; 
+            font-size: 18px;
+        }
+
+        .input-group input { 
+            width: 100%; 
+            padding: 14px 15px 14px 45px; 
+            border: 2px solid #f1f1f1; 
+            border-radius: 8px; 
+            outline: none; 
+            font-size: 16px;
+            transition: 0.3s;
+        }
+
+        .input-group input:focus {
+            border-color: #d32f2f;
+            background: #fffafa;
+        }
+
+        .login-btn { 
+            width: 100%; 
+            padding: 14px; 
+            background: #1d3557; /* Admin uses Dark Blue for distinction */
+            color: #fff; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            text-transform: uppercase;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+
+        .login-btn:hover {
+            background: #0d1b2a;
+            box-shadow: 0 5px 15px rgba(29, 53, 87, 0.3);
+        }
+
+        .back-link { 
+            display: inline-block;
+            margin-top: 25px; 
+            color: #666; 
+            text-decoration: none; 
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .back-link:hover { color: #d32f2f; }
+        
+        .back-link i { margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="header">
+            <i class="fas fa-user-shield"></i>
+            <h2>Admin Login</h2>
+            <p>Master Control Access</p>
+        </div>
+
+        <form action="/login" method="POST">
+            <div class="input-group">
+                <i class="fas fa-user-lock"></i>
+                <input type="text" name="username" placeholder="Admin Username" required>
+            </div>
+            
+            <div class="input-group">
+                <i class="fas fa-key"></i>
+                <input type="password" name="password" placeholder="Admin Password" required>
+            </div>
+            
+            <button type="submit" class="login-btn">Authorize Access</button>
+        </form>
+
+        <a href="/" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Driver Login
+        </a>
+    </div>
+
+</body>
+</html>

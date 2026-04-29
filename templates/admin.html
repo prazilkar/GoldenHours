@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueLink Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --red: #d32f2f; --dark: #1a1a1a; --white: #fff; --grey: #f4f4f4; --navy: #1d3557; --success: #2e7d32; --warning: #ef6c00; }
+        * { margin:0; padding:0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--grey); display: flex; min-height: 100vh; overflow-x: hidden; }
+
+        /* ✅ Sidebar CSS Fix */
+        .sidebar { width: 260px; height: 100vh; background: var(--dark); color: white; padding: 20px; position: fixed; left: -260px; transition: 0.4s; z-index: 2001; }
+        .sidebar.active { left: 0; box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
+        
+        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; }
+        .overlay.active { display: block; }
+
+        .menu-item { padding: 15px; cursor: pointer; display: flex; align-items: center; color: white; text-decoration: none; border-radius: 8px; margin-bottom: 8px; transition: 0.3s; }
+        .menu-item:hover, .active-link { background: var(--red); }
+        .menu-item i { margin-right: 12px; width: 20px; }
+
+        .main { flex: 1; padding: 25px; transition: 0.3s; width: 100%; }
+        .top-bar { background: var(--white); padding: 15px 25px; border-radius: 12px; display: flex; align-items: center; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        
+        /* ✅ Toggle Button Fix */
+        .menu-toggle { font-size: 24px; cursor: pointer; margin-right: 20px; color: var(--navy); padding: 5px; }
+
+        .section { display: none; }
+        .section.active-sec { display: block; animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: var(--white); padding: 25px; border-radius: 15px; text-align: center; border-bottom: 5px solid var(--red); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .stat-card i { font-size: 30px; color: var(--red); margin-bottom: 10px; }
+        .stat-card p { font-size: 28px; font-weight: 800; color: var(--navy); }
+
+        .data-card { background: var(--white); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 5px solid #ddd; }
+        .table-container { width: 100%; overflow-x: auto; background: white; padding: 20px; border-radius: 15px; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+
+        .btn { padding: 8px 15px; border-radius: 6px; color: white; text-decoration: none; font-weight: bold; font-size: 12px; border: none; cursor: pointer; display: inline-block; }
+        .btn-approve { background: #2e7d32; }
+        .btn-reject { background: #d32f2f; }
+
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+
+        .modal { display: none; position: fixed; z-index: 3000; inset: 0; padding-top: 50px; background: rgba(0,0,0,0.9); }
+        .modal-content { margin: auto; display: block; width: 80%; max-width: 700px; border-radius: 10px; }
+        .close-modal { position: absolute; top: 20px; right: 35px; color: #fff; font-size: 40px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+    
+    <div id="imgModal" class="modal">
+        <span class="close-modal" onclick="closeImage()">&times;</span>
+        <img class="modal-content" id="expandedImg">
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <h2 style="color:var(--red); text-align:center; margin-bottom:30px; letter-spacing:1px;">RESCUELINK</h2>
+        <div class="menu-item active-link" onclick="showSection('home-sec', 'Dashboard')"><i class="fas fa-home"></i> Dashboard</div>
+        <div class="menu-item" onclick="showSection('hosp-approval-sec', 'Hospital Approval')"><i class="fas fa-hospital-user"></i> Hospital Approval</div>
+        <div class="menu-item" onclick="showSection('approval-sec', 'Ambulance Approval')"><i class="fas fa-user-check"></i> Ambulance Approval</div>
+        <div class="menu-item" onclick="showSection('directory-sec', 'Ambulance List')"><i class="fas fa-ambulance"></i> Ambulance List</div>
+        <div class="menu-item" onclick="showSection('hosp-sec', 'Hospital List')"><i class="fas fa-hospital"></i> Hospital List</div>
+        <div class="menu-item" onclick="showSection('unknown-sec', 'Case Registry')"><i class="fas fa-id-card-alt"></i> Case Registry</div>
+        <a href="/logout" class="menu-item" style="margin-top:20px; color:#ffbcbc;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </div>
+
+    <div class="main">
+        <div class="top-bar">
+            <i class="fas fa-bars menu-toggle" onclick="toggleSidebar()"></i>
+            <h2 id="page-title">Dashboard</h2>
+        </div>
+
+        <div id="home-sec" class="section active-sec">
+            <div class="stats-grid">
+                <div class="stat-card"><i class="fas fa-truck-medical"></i><p>{{ amb_list|length }}</p><h3>Total Units</h3></div>
+                <div class="stat-card"><i class="fas fa-hospital-alt"></i><p>{{ hosp_list|length }}</p><h3>Total Hospitals</h3></div>
+                <div class="stat-card"><i class="fas fa-heartbeat"></i><p>{{ unknown_list|length if unknown_list else 0 }}</p><h3>Total Cases</h3></div>
+            </div>
+        </div>
+
+        <div id="hosp-approval-sec" class="section">
+            {% for h in hosp_list if h.status|lower == 'pending' %}
+            <div class="data-card">
+                <h4 style="color:var(--navy);">{{ h.hospital_name }}</h4>
+                <p>District: {{ h.district }} | Phone: {{ h.phone }}</p>
+                <div style="margin-top: 15px;">
+                    <a href="/update_status/hosp/{{ h.hospital_name }}/approve" class="btn btn-approve">APPROVE</a>
+                    <a href="/update_status/hosp/{{ h.hospital_name }}/reject" class="btn btn-reject">REJECT</a>
+                </div>
+            </div>
+            {% else %}
+            <p style="text-align:center; color:#999; padding:20px;">No pending hospital requests.</p>
+            {% endfor %}
+        </div>
+
+        <div id="approval-sec" class="section">
+            {% for amb in amb_list if amb.status|lower == 'pending' %}
+            <div class="data-card" style="display: flex; align-items: center; gap: 20px; border-left-color: var(--red);">
+                <div style="display: flex; gap: 5px;">
+                    <img src="/static/images/{{ amb.img_front }}" onclick="expandImage(this)" style="width:70px; height:70px; border-radius:8px; object-fit:cover; border:1px solid #ddd; cursor:pointer;" onerror="this.src='https://via.placeholder.com/70?text=No+Img'">
+                    <img src="/static/images/{{ amb.img_back }}" onclick="expandImage(this)" style="width:70px; height:70px; border-radius:8px; object-fit:cover; border:1px solid #ddd; cursor:pointer;" onerror="this.src='https://via.placeholder.com/70?text=No+Img'">
+                </div>
+                <div style="flex: 1;">
+                    <h4 style="color:var(--navy); text-transform: uppercase;">{{ amb.ambulance_name }}</h4>
+                    <p style="font-size: 14px; color: #555;">
+                        <i class="fas fa-phone-alt"></i> {{ amb.driver_mobile }} | 
+                        <i class="fas fa-map-marker-alt"></i> {{ amb.district }}
+                    </p>
+                    <small>Reg No: {{ amb.ambulance_no }}</small>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <a href="/update_status/amb/{{ amb.ambulance_no }}/approve" class="btn btn-approve">APPROVE</a>
+                    <a href="/update_status/amb/{{ amb.ambulance_no }}/reject" class="btn btn-reject">REJECT</a>
+                </div>
+            </div>
+            {% else %}
+            <p style="text-align:center; color:#999; padding:20px;">No pending ambulance requests.</p>
+            {% endfor %}
+        </div>
+
+        <div id="directory-sec" class="section">
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Name</th><th>No</th><th>District</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for amb in amb_list if amb.status|lower == 'approved' %}
+                        <tr><td>{{ amb.ambulance_name }}</td><td>{{ amb.ambulance_no }}</td><td>{{ amb.district }}</td><td><span style="color:var(--success)">Approved</span></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="hosp-sec" class="section">
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Hospital Name</th><th>District</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for hosp in hosp_list if hosp.status|lower == 'approved' %}
+                        <tr><td><b>{{ hosp.hospital_name }}</b></td><td>{{ hosp.district }}</td><td><span style="color:var(--success)">Live</span></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="unknown-sec" class="section">
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Photo</th><th>Case ID</th><th>Ambulance</th><th>Target Hospital</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for case in unknown_list %}
+                        <tr>
+                            <td><img src="/static/images/patients/{{ case.photo }}" onclick="expandImage(this)" style="width:45px; height:45px; border-radius:5px; cursor:pointer; object-fit:cover;"></td>
+                            <td><b>{{ case.case_id }}</b></td>
+                            <td>{{ case.rescue_ambulance }}</td>
+                            <td>{{ case.hospital_name }}</td>
+                            <td><span class="status-badge" style="background:#eee; color:#666;">{{ case.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        function showSection(id, title) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active-sec'));
+            // Show current section
+            var target = document.getElementById(id);
+            if(target) target.classList.add('active-sec');
+            
+            // Update Title
+            document.getElementById('page-title').innerText = title;
+            
+            // Update Menu Active Style
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active-link'));
+            let menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => {
+                if(item.innerText.includes(title)) item.classList.add('active-link');
+            });
+
+            // Auto close on mobile
+            if(window.innerWidth < 768) toggleSidebar();
+        }
+
+        function expandImage(img) {
+            document.getElementById("imgModal").style.display = "block";
+            document.getElementById("expandedImg").src = img.src;
+        }
+        function closeImage() { document.getElementById("imgModal").style.display = "none"; }
+    </script>
+</body>
+</html>

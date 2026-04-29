@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueLink - Application Status</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Prevents frame overflow */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        
+        body { 
+            background: #121212; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+
+        .card { 
+            background: #fff; 
+            width: 100%; 
+            max-width: 400px; 
+            padding: 40px; 
+            border-radius: 15px; 
+            border-top: 10px solid #d32f2f; 
+            text-align: center; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+        }
+
+        .header i { font-size: 50px; color: #d32f2f; margin-bottom: 15px; }
+        h2 { color: #1d3557; margin-bottom: 10px; font-size: 24px; }
+        p { color: #666; font-size: 14px; margin-bottom: 25px; }
+
+        .input-group { margin-bottom: 20px; position: relative; width: 100%; }
+        .input-group i { position: absolute; left: 15px; top: 16px; color: #d32f2f; }
+        .input-group input { 
+            width: 100%; 
+            padding: 14px 15px 14px 45px; 
+            border: 2px solid #f1f1f1; 
+            border-radius: 8px; 
+            outline: none; 
+            font-size: 16px;
+        }
+
+        .check-btn { 
+            width: 100%; 
+            padding: 14px; 
+            background: #d32f2f; 
+            color: #fff; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            text-transform: uppercase;
+        }
+
+        /* Result Display Box */
+        .result-container {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 10px;
+            background: #fdfdfd;
+            border: 2px dashed #ddd;
+        }
+
+        .status-label { font-size: 12px; color: #888; text-transform: uppercase; font-weight: bold; }
+        .status-value { 
+            font-size: 22px; 
+            font-weight: 800; 
+            margin-top: 5px;
+            display: block;
+        }
+
+        /* Status Colors */
+        .status-Approved { color: #2e7d32; }
+        .status-Pending { color: #ef6c00; }
+        .status-Rejected { color: #d32f2f; }
+        .status-Not { color: #888; }
+
+        .back-link { display: block; margin-top: 25px; color: #666; text-decoration: none; font-size: 14px; font-weight: bold; }
+        .back-link:hover { color: #d32f2f; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="header">
+            <i class="fas fa-search-location"></i>
+            <h2>Track Status</h2>
+            <p>Check your registration progress</p>
+        </div>
+
+        <form action="/check_status" method="POST">
+            <div class="input-group">
+                <i class="fas fa-hospital"></i>
+                <input type="text" name="ambulance_name" placeholder="Ambulance Service Name" required>
+            </div>
+            
+            <div class="input-group">
+                <i class="fas fa-hashtag"></i>
+                <input type="text" name="ambulance_no" placeholder="Vehicle Number" required>
+            </div>
+            
+            <button type="submit" class="check-btn">Search Status</button>
+        </form>
+
+        {% if result_status %}
+        <div class="result-container">
+            <span class="status-label">Vehicle: {{ amb_no }}</span>
+            <span class="status-value status-{{ result_status.split(' ')[0] }}">
+                {{ result_status }}
+            </span>
+        </div>
+        {% endif %}
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <p style="color: #d32f2f; margin-top: 15px; font-size: 13px;">{{ messages[0] }}</p>
+          {% endif %}
+        {% endwith %}
+
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back to Login</a>
+    </div>
+
+</body>
+</html>

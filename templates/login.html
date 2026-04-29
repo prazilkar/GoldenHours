@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueLink | Secure Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --danger: #ff0000; --blue: #0044ff; --gold: #ffc107; --white: #ffffff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+        body { 
+            background: #000; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- ✅ BRIGHTENED BACKGROUND FIX --- */
+        .bg-main {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: url("/static/images/image.png") center/cover no-repeat;
+            opacity: 0.7; 
+            z-index: -2;
+            filter: brightness(0.7) contrast(1.1) saturate(1.1); 
+        }
+
+        .shuttle-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.85) 100%);
+            z-index: -1;
+        }
+
+        .siren-glow { position: fixed; top: 0; width: 50vw; height: 100vh; filter: blur(150px); z-index: -1; opacity: 0.35; }
+        .siren-red { left: 0; background: var(--danger); animation: blinkSiren 0.8s infinite alternate; }
+        .siren-blue { right: 0; background: var(--blue); animation: blinkSiren 0.8s infinite alternate-reverse; }
+        @keyframes blinkSiren { 0% { opacity: 0.1; } 100% { opacity: 0.6; } }
+
+        .top-siren-bar { position: fixed; top: 0; left: 0; width: 100%; height: 6px; display: flex; z-index: 100; }
+        .seg { flex: 1; height: 100%; }
+        .seg-red { background: var(--danger); animation: flash 0.5s infinite; }
+        .seg-blue { background: var(--blue); animation: flash 0.5s infinite; animation-delay: 0.25s; }
+        @keyframes flash { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
+        .card { 
+            background: rgba(10, 12, 16, 0.9); 
+            padding: 40px; border-radius: 28px; 
+            width: 100%; max-width: 400px; 
+            text-align: center; border: 1px solid rgba(255,255,255,0.1);
+            border-top: 6px solid var(--danger);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+            animation: slideUp 0.7s ease-out;
+        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+
+        .logo-box { position: relative; display: inline-block; margin-bottom: 15px; }
+        .logo-box i { font-size: 55px; color: #fff; }
+        .logo-siren {
+            position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+            width: 55px; height: 20px; filter: blur(14px);
+            z-index: -1; animation: logoBlink 0.4s infinite alternate;
+        }
+        @keyframes logoBlink { 0% { background: var(--danger); } 100% { background: var(--blue); } }
+
+        h1 { color: #fff; font-size: 32px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+        p { color: var(--gold); font-size: 13px; font-weight: 800; letter-spacing: 2px; margin-bottom: 30px; }
+
+        .input-group { margin-bottom: 20px; position: relative; }
+        .input-group input { 
+            width: 100%; padding: 16px 15px 16px 50px; 
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; color: #fff; outline: none; transition: 0.3s;
+        }
+        .input-group input:focus { border-color: var(--danger); background: rgba(255,255,255,0.1); }
+        .input-group i { position: absolute; left: 18px; top: 18px; color: var(--danger); font-size: 18px; }
+
+        .login-btn { 
+            width: 100%; padding: 18px; background: var(--danger); color: #fff; 
+            border: none; border-radius: 12px; font-weight: 900; 
+            text-transform: uppercase; cursor: pointer; transition: 0.3s;
+        }
+        .login-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(255,0,0,0.4); }
+
+        /* ✅ ADMIN SECTION STYLING */
+        .admin-access {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .admin-btn {
+            background: transparent;
+            color: rgba(255,255,255,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .admin-btn:hover { color: #fff; border-color: var(--gold); background: rgba(255,193,7,0.1); }
+
+        .links { margin-top: 20px; font-size: 13px; }
+        .links a { color: #fff; text-decoration: none; opacity: 0.7; font-weight: bold; }
+        .links a:hover { opacity: 1; color: var(--gold); }
+    </style>
+</head>
+<body>
+
+    <div class="bg-main"></div>
+    <div class="shuttle-overlay"></div>
+
+    <div class="siren-glow siren-red"></div>
+    <div class="siren-glow siren-blue"></div>
+    <div class="top-siren-bar">
+        <div class="seg seg-red"></div><div class="seg seg-blue"></div>
+        <div class="seg seg-red"></div><div class="seg seg-blue"></div>
+    </div>
+
+    <div class="card">
+        <div class="logo-box">
+            <div class="logo-siren"></div>
+            <i class="fas fa-ambulance"></i>
+            <h1>RescueLink</h1>
+            <p>Secure Emergency Portal</p>
+        </div>
+
+        <form action="/login" method="POST">
+            <div class="input-group">
+                <i class="fas fa-id-card"></i>
+                <input type="text" id="username" name="username" placeholder="ID / Hospital Name" required>
+            </div>
+            <div class="input-group">
+                <i class="fas fa-lock"></i>
+                <input type="password" name="password" placeholder="Password" required>
+            </div>
+            <button type="submit" class="login-btn">Secure Login</button>
+        </form>
+
+        <div class="links">
+            <a href="/register_page">Register Vehicle</a>
+            <span style="color:#444; margin:0 10px;">|</span>
+            <a href="/view_status_page">Check Status</a>
+        </div>
+
+        <div class="admin-access">
+            <button class="admin-btn" onclick="setAdmin()">
+                <i class="fas fa-user-shield"></i> Admin Access
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Simple JS to help Admin quickly set the ID
+        function setAdmin() {
+            document.getElementById('username').value = 'ADMINPRAZIL';
+            document.getElementById('username').focus();
+        }
+    </script>
+</body>
+</html>

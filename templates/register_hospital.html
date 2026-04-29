@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Onboarding | RescueLink Golden Hour</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --medical-red: #ff3b3f;
+            --rescue-blue: #0ea5e9;
+            --dark-bg: #030712;
+            --glass-bg: rgba(17, 24, 39, 0.75);
+            --white: #ffffff;
+            --text-grey: #9ca3af;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--white);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Particles */
+        body::before, body::after {
+            content: ''; position: absolute; border-radius: 50%; opacity: 0.2; z-index: -1;
+        }
+        body::before {
+            width: 300px; height: 300px; background: radial-gradient(circle, var(--medical-red), transparent);
+            top: 5%; left: 5%; animation: move 10s infinite alternate;
+        }
+        body::after {
+            width: 250px; height: 250px; background: radial-gradient(circle, var(--rescue-blue), transparent);
+            bottom: 5%; right: 5%; animation: move 8s infinite alternate-reverse;
+        }
+        @keyframes move { 100% { transform: translate(60px, 60px); } }
+
+        .container {
+            width: 100%; max-width: 800px;
+            background-color: var(--glass-bg);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px; padding: 45px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+            border-top: 6px solid var(--medical-red);
+            animation: slide-up 0.7s ease-out;
+        }
+
+        @keyframes slide-up { 0% { transform: translateY(40px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+
+        .header { text-align: center; margin-bottom: 35px; }
+        .header i {
+            font-size: 55px; color: var(--medical-red);
+            filter: drop-shadow(0 0 10px var(--medical-red));
+            animation: pulse-heart 1.5s infinite;
+        }
+        @keyframes pulse-heart { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+        .section-title {
+            font-size: 13px; color: var(--medical-red); font-weight: 800;
+            text-transform: uppercase; margin: 25px 0 15px;
+            border-bottom: 2px solid rgba(255,255,255,0.05);
+            padding-bottom: 5px; display: flex; align-items: center; gap: 10px;
+        }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .full-width { grid-column: 1 / -1; }
+
+        label { display: block; font-size: 11px; text-transform: uppercase; margin-bottom: 8px; color: var(--text-grey); font-weight: bold; }
+
+        input, select {
+            width: 100%; padding: 14px; background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;
+            color: white; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--rescue-blue); background: rgba(255, 255, 255, 0.1); }
+
+        /* GPS SYNC BUTTON */
+        .gps-btn {
+            background: rgba(14, 165, 233, 0.1);
+            border: 1px dashed var(--rescue-blue);
+            color: var(--rescue-blue);
+            padding: 15px; border-radius: 12px;
+            cursor: pointer; width: 100%;
+            font-weight: 800; font-size: 12px;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
+            transition: 0.3s; margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        .gps-btn:hover { background: var(--rescue-blue); color: white; }
+
+        /* FACILITIES CHECKBOX STYLE */
+        .checkbox-container {
+            grid-column: 1 / -1; background: rgba(255, 255, 255, 0.03);
+            padding: 20px; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .checkbox-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 10px; }
+        .check-item { display: flex; align-items: center; font-size: 14px; gap: 10px; color: var(--white); cursor: pointer; transition: 0.3s; }
+        .check-item:hover { color: var(--rescue-blue); }
+        .check-item input { width: 18px; height: 18px; accent-color: var(--medical-red); cursor: pointer; }
+
+        .btn-submit {
+            grid-column: 1 / -1; background: linear-gradient(135deg, var(--medical-red), #b71c1c);
+            color: white; padding: 18px; border: none; border-radius: 15px;
+            font-size: 16px; font-weight: 900; text-transform: uppercase;
+            cursor: pointer; margin-top: 25px; transition: 0.4s;
+            box-shadow: 0 10px 20px rgba(211, 47, 47, 0.3);
+            display: flex; justify-content: center; align-items: center; gap: 12px;
+        }
+        .btn-submit:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(211, 47, 47, 0.5); }
+
+        select option { background-color: #111827; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <i class="fas fa-heartbeat"></i>
+        <h1>Hospital Onboarding</h1>
+        <p><i class="fas fa-satellite-dish"></i> RESCUELINK GOLDEN HOUR NETWORK</p>
+    </div>
+
+    <form action="/save_hospital" method="POST">
+        <div class="section-title"><i class="fas fa-file-medical"></i> Clinical Registry</div>
+        <div class="form-grid">
+            <div class="input-group full-width">
+                <label>Official Hospital Name</label>
+                <input type="text" name="hospital_name" placeholder="Full Hospital Name" required>
+            </div>
+            <div class="input-group">
+                <label>District</label>
+                <input type="text" name="district" placeholder="e.g. Namakkal" required>
+            </div>
+            <div class="input-group">
+                <label>Helpline Number</label>
+                <input type="tel" name="phone" placeholder="Emergency Contact" required>
+            </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-location-crosshairs"></i> GPS Localization</div>
+        <button type="button" class="gps-btn" onclick="getLocation()">
+            <i class="fas fa-crosshairs"></i> AUTO-SYNC HOSPITAL LOCATION
+        </button>
+        <div class="form-grid">
+            <div class="input-group">
+                <label>Latitude</label>
+                <input type="text" id="lat" name="latitude" required placeholder="Type or Sync Latitude">
+            </div>
+            <div class="input-group">
+                <label>Longitude</label>
+                <input type="text" id="lng" name="longitude" required placeholder="Type or Sync Longitude">
+            </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-user-shield"></i> Security & Specialization</div>
+        <div class="form-grid">
+            <div class="input-group full-width">
+                <label>Primary Specialization</label>
+                <select name="type" required>
+                    <option value="" disabled selected>-- Select Specialized Category --</option>
+                    <option value="Multi-Specialty">Multi-Specialty</option>
+                    <option value="Trauma Center">Trauma & Accident Care</option>
+                    <option value="Cardiac Center">Cardiac Critical Care</option>
+                    <option value="Maternity">Maternity & Pediatric</option>
+                </select>
+            </div>
+            <div class="input-group full-width">
+                <label>Dashboard Secure Password</label>
+                <input type="password" name="password" placeholder="Create private password" required>
+            </div>
+
+            <div class="checkbox-container">
+                <label style="color:white; margin-bottom:10px;">Critical Infrastructure Available:</label>
+                <div class="checkbox-grid">
+                    <div class="check-item"><input type="checkbox" name="icu"> ICU / CRITICAL CARE UNIT</div>
+                    <div class="check-item"><input type="checkbox" name="vent"> VENTILATOR SUPPORT</div>
+                    <div class="check-item"><input type="checkbox" name="blood"> 24/7 BLOOD BANK</div>
+                    <div class="check-item"><input type="checkbox" name="ct"> CT / MRI SCANNING</div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                COMPLETE ONBOARDING <i class="fas fa-check-double"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function getLocation() {
+        const btn = document.querySelector('.gps-btn');
+        if (navigator.geolocation) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> SYNCING GPS DATA...';
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    document.getElementById("lat").value = pos.coords.latitude.toFixed(6);
+                    document.getElementById("lng").value = pos.coords.longitude.toFixed(6);
+                    btn.innerHTML = '<i class="fas fa-check-circle"></i> LOCATION SYNCED SUCCESSFULLY';
+                    btn.style.borderColor = "#4ade80";
+                    btn.style.color = "#4ade80";
+                },
+                (err) => {
+                    btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ACCESS DENIED';
+                    alert("Please allow location access to auto-fill coordinates.");
+                }
+            );
+        }
+    }
+</script>
+
+</body>
+</html>

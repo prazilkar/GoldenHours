@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Vibha Hospital - Emergency Command Center</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            overflow: hidden; 
+            background: #0a0a0a;
+        }
+        
+        #map { 
+            height: 100vh; 
+            width: 100%; 
+            background: #1a1a2e;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        #activationOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            transition: all 0.5s ease;
+        }
+        
+        #activationOverlay h1 {
+            color: white;
+            font-size: clamp(1.5rem, 6vw, 2.5rem);
+            margin-bottom: 15px;
+        }
+        
+        #activationOverlay p {
+            color: #888;
+            margin-bottom: 30px;
+            font-size: clamp(0.8rem, 3vw, 1rem);
+        }
+        
+        #activateBtn {
+            padding: clamp(15px, 4vw, 18px) clamp(30px, 8vw, 50px);
+            font-size: clamp(1rem, 4vw, 1.5rem);
+            background: linear-gradient(135deg, #e63946, #c1121f);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 0 30px rgba(214, 40, 40, 0.5);
+        }
+        
+        #activateBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 50px rgba(214, 40, 40, 0.8);
+        }
+        
+        .hospital-tag {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 12px;
+            border-left: 4px solid #e63946;
+            color: white;
+            font-weight: bold;
+            font-size: clamp(0.7rem, 3vw, 0.9rem);
+            pointer-events: none;
+        }
+        
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            width: min(380px, 90vw);
+            max-height: 85vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .alert-card {
+            background: linear-gradient(135deg, #ffffff, #f5f5f5);
+            border-radius: 16px;
+            padding: 18px;
+            border-left: 5px solid #e63946;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: slideIn 0.4s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .alert-title {
+            color: #e63946;
+            margin-bottom: 12px;
+            font-size: clamp(0.9rem, 4vw, 1.1rem);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .alert-info {
+            margin: 6px 0;
+            font-size: clamp(0.75rem, 3vw, 0.85rem);
+        }
+        
+        .alert-label {
+            font-weight: bold;
+            color: #555;
+            width: 75px;
+            display: inline-block;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        
+        .status-enroute {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .status-reaching {
+            background: #2196f3;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .mute-only-btn {
+            width: 100%;
+            padding: 10px;
+            margin-top: 12px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .mute-only-btn:hover {
+            background: #555;
+        }
+        
+        @keyframes zoomFlash {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.4; }
+        }
+        
+        .zoom-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle, rgba(230,57,70,0.4) 0%, rgba(230,57,70,0) 70%);
+            pointer-events: none;
+            z-index: 1002;
+            animation: zoomFlash 0.8s ease-out;
+        }
+        
+        .route-info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            padding: 12px 18px;
+            border-radius: 12px;
+            border-left: 3px solid #e63946;
+            color: white;
+            font-size: 12px;
+            max-width: 300px;
+            pointer-events: none;
+        }
+        
+        .route-info .title {
+            font-weight: bold;
+            color: #e63946;
+            margin-bottom: 5px;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+        
+        .route-info .distance {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+        
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1001;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-family: monospace;
+            color: #4caf50;
+        }
+        
+        .ambulance-marker div {
+            animation: markerPulse 1s infinite;
+        }
+        
+        @keyframes markerPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.8; }
+        }
+        
+        .alert-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        .alert-container::-webkit-scrollbar-track {
+            background: #333;
+            border-radius: 10px;
+        }
+        .alert-container::-webkit-scrollbar-thumb {
+            background: #e63946;
+            border-radius: 10px;
+        }
+        
+        @media (max-width: 480px) {
+            .hospital-tag {
+                top: 10px;
+                left: 10px;
+                padding: 8px 15px;
+                font-size: 10px;
+            }
+            .alert-container {
+                top: 10px;
+                right: 10px;
+                width: 90vw;
+                max-height: 80vh;
+            }
+            .alert-card {
+                padding: 12px;
+            }
+            .route-info {
+                bottom: 10px;
+                left: 10px;
+                padding: 8px 12px;
+                max-width: 260px;
+                font-size: 10px;
+            }
+            .connection-status {
+                bottom: 10px;
+                right: 10px;
+                font-size: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="activationOverlay">
+    <h1><i class="fas fa-ambulance"></i> Vibha Hospital</h1>
+    <p>📍 AUTO-ZOOM TO ACCIDENT | REAL ROAD ROUTING</p>
+    <button id="activateBtn" onclick="activateSystem()">
+        <i class="fas fa-play"></i> ACTIVATE SYSTEM
+    </button>
+</div>
+
+<div class="hospital-tag">
+    <i class="fas fa-hospital"></i> VIBHA HOSPITAL | ACCIDENT TRACKING
+</div>
+
+<div class="alert-container" id="alertContainer"></div>
+
+<div class="route-info" id="routeInfo">
+    <div class="title">🛣️ REAL ROAD ROUTE</div>
+    <div>Waiting for emergency alert...</div>
+</div>
+
+<div class="connection-status" id="connStatus">
+    <i class="fas fa-circle" style="color: #ff9800;"></i> Waiting...
+</div>
+
+<!-- Alarm Sound -->
+<audio id="alarmSound" loop preload="auto">
+    <source src="/static/alarm.wav" type="audio/wav">
+</audio>
+
+<!-- Siren Sound for Reaching Alert -->
+<audio id="sirenSound" loop preload="auto">
+    <source src="/static/siren.wav" type="audio/wav">
+</audio>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<script>
+    // Vibha Hospital Details
+    var hospitalName = "vibha";
+    var hospitalCoords = [11.200026478911454, 78.1654];
+    
+    console.log("🏥 Hospital:", hospitalName);
+    console.log("📍 Coordinates:", hospitalCoords);
+    
+    // Satellite Map
+    var map = L.map('map').setView(hospitalCoords, 14);
+    
+    L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '&copy; Google Satellite | Vibha Hospital'
+    }).addTo(map);
+    
+    // Hospital Marker
+    var hospitalIcon = L.divIcon({
+        html: '<div style="background:#c1121f; width:35px; height:35px; border-radius:50%; border:3px solid white; box-shadow:0 0 20px #c1121f; text-align:center; line-height:33px;"><i class="fas fa-hospital" style="color:white; font-size:16px;"></i></div>',
+        iconSize: [40, 40]
+    });
+    
+    L.marker(hospitalCoords, { icon: hospitalIcon })
+        .addTo(map)
+        .bindPopup("<b>🏥 Vibha Hospital</b>")
+        .openPopup();
+    
+    L.circle(hospitalCoords, {
+        color: '#e63946',
+        fillColor: '#e63946',
+        fillOpacity: 0.1,
+        radius: 500,
+        weight: 2,
+        dashArray: '5, 10'
+    }).addTo(map);
+    
+    var socket = io();
+    var alarmSound = document.getElementById("alarmSound");
+    var sirenSound = document.getElementById("sirenSound");
+    var ambulanceMarkers = {};
+    var routingControls = {};
+    var activeAlerts = {};
+    var isAlarmPlaying = false;
+    var isSirenPlaying = false;
+    var activeAlertCount = 0;
+    
+    function playAlarm() {
+        if (!isAlarmPlaying && activeAlertCount > 0) {
+            alarmSound.play().then(() => {
+                isAlarmPlaying = true;
+                console.log("🔊 Alarm sound started");
+            }).catch(function(e) {
+                console.log("Audio play error:", e);
+                document.body.addEventListener('click', function playOnce() {
+                    if (activeAlertCount > 0 && !isAlarmPlaying) {
+                        alarmSound.play().catch(function(e) {});
+                        isAlarmPlaying = true;
+                    }
+                    document.body.removeEventListener('click', playOnce);
+                });
+            });
+        }
+    }
+    
+    function stopAlarm() {
+        if (alarmSound) {
+            alarmSound.pause();
+            alarmSound.currentTime = 0;
+            isAlarmPlaying = false;
+            console.log("🔇 Alarm sound stopped");
+        }
+    }
+    
+    function playSiren() {
+        if (!isSirenPlaying) {
+            sirenSound.play().then(() => {
+                isSirenPlaying = true;
+                console.log("🚨 Siren sound started for reaching alert");
+            }).catch(function(e) {
+                console.log("Siren play error:", e);
+                document.body.addEventListener('click', function playOnce() {
+                    if (!isSirenPlaying) {
+                        sirenSound.play().catch(function(e) {});
+                        isSirenPlaying = true;
+                    }
+                    document.body.removeEventListener('click', playOnce);
+                });
+            });
+        }
+    }
+    
+    function stopSiren() {
+        if (sirenSound) {
+            sirenSound.pause();
+            sirenSound.currentTime = 0;
+            isSirenPlaying = false;
+            console.log("🔇 Siren sound stopped");
+        }
+    }
+    
+    function showZoomFlash() {
+        var flash = document.createElement('div');
+        flash.className = 'zoom-flash';
+        document.body.appendChild(flash);
+        setTimeout(() => flash.remove(), 800);
+    }
+    
+    function zoomToAccidentLocation(lat, lng) {
+        showZoomFlash();
+        map.flyTo([lat, lng], 17, {
+            duration: 1.2,
+            easeLinearity: 0.3
+        });
+        console.log(`📍 Auto-zoomed to accident location: ${lat}, ${lng}`);
+    }
+    
+    function activateSystem() {
+        document.getElementById('activationOverlay').style.display = 'none';
+        socket.emit('join', { room: hospitalName });
+        console.log("✅ Joined room:", hospitalName);
+        
+        alarmSound.play().then(() => {
+            alarmSound.pause();
+            alarmSound.currentTime = 0;
+        }).catch(e => console.log("Audio ready - will play on alert"));
+        
+        showTempMessage("✅ System Activated! Waiting for alerts...");
+        setTimeout(() => map.invalidateSize(), 100);
+    }
+    
+    function showTempMessage(msg) {
+        var container = document.getElementById("alertContainer");
+        var tempCard = document.createElement("div");
+        tempCard.className = "alert-card";
+        tempCard.style.borderLeftColor = "#4caf50";
+        tempCard.style.background = "#e8f5e9";
+        tempCard.innerHTML = `<i class="fas fa-check-circle" style="color:#4caf50"></i> ${msg}`;
+        container.prepend(tempCard);
+        setTimeout(() => tempCard.remove(), 3000);
+    }
+    
+    function calculateRoadRoute(alertId, accidentLat, accidentLng) {
+    if (routingControls[alertId]) {
+        map.removeControl(routingControls[alertId]);
+    }
+    
+    routingControls[alertId] = L.Routing.control({
+        waypoints: [
+            L.latLng(accidentLat, accidentLng),
+            L.latLng(hospitalCoords[0], hospitalCoords[1])
+        ],
+        routeWhileDragging: false,
+        showAlternatives: false,
+        show: true,  // Changed to true to show route on map
+        lineOptions: {
+            styles: [{ color: '#e94560', weight: 5, opacity: 0.9 }]
+        },
+        router: L.Routing.osrmv1({
+            serviceUrl: 'https://router.project-osrm.org/route/v1',
+            profile: 'driving'
+        }),
+        createMarker: function() { return null; }
+    }).on('routesfound', function(e) {
+        var route = e.routes[0];
+        var distanceKm = (route.summary.totalDistance / 1000).toFixed(1);
+        var timeMin = Math.round(route.summary.totalTime / 60);
+        
+        // ✅ Ensure minimum values
+        if (timeMin < 1 && distanceKm > 0) {
+            timeMin = 1;
+        }
+        
+        // Traffic calculation
+        var hour = new Date().getHours();
+        var trafficFactor = 1;
+        var trafficText = "";
+        if (hour >= 8 && hour <= 10) {
+            trafficFactor = 1.5;
+            trafficText = "⚠️ Heavy Traffic";
+        } else if (hour >= 17 && hour <= 19) {
+            trafficFactor = 1.6;
+            trafficText = "⚠️⚠️ Very Heavy Traffic";
+        } else if (hour >= 22 || hour <= 5) {
+            trafficFactor = 0.8;
+            trafficText = "✅ Light Traffic";
+        } else {
+            trafficText = "🟡 Moderate Traffic";
+        }
+        
+        var etaWithTraffic = Math.round(timeMin * trafficFactor);
+        
+        activeAlerts[alertId] = {
+            distance: distanceKm + " km",
+            eta: etaWithTraffic + " min",
+            traffic: trafficText
+        };
+        
+        // Update route info panel
+        var routeInfoDiv = document.getElementById('routeInfo');
+        routeInfoDiv.innerHTML = `
+            <div class="title">🚑 FROM ACCIDENT TO HOSPITAL</div>
+            <div><span class="distance">${distanceKm} km</span> road distance</div>
+            <div>⏱️ ETA: <strong>${etaWithTraffic} min</strong></div>
+            <div>🚗 ${trafficText}</div>
+            <div style="font-size:10px; margin-top:5px;">📌 Active Alerts: ${activeAlertCount}</div>
+        `;
+        
+        // Update ambulance popup
+        if (ambulanceMarkers[alertId]) {
+            ambulanceMarkers[alertId].bindPopup(`
+                <b>🚨 ACCIDENT LOCATION</b><br>
+                📏 Distance: ${distanceKm} km<br>
+                ⏱️ ETA: ${etaWithTraffic} min<br>
+                🚗 ${trafficText}
+            `).openPopup();
+        }
+        
+        // Update alert card with distance and ETA
+        var distElem = document.getElementById(`dist-info-${alertId}`);
+        var etaElem = document.getElementById(`eta-info-${alertId}`);
+        if (distElem) distElem.innerHTML = `<span class="alert-label">📏 Distance:</span> ${distanceKm} km via road`;
+        if (etaElem) etaElem.innerHTML = `<span class="alert-label">⏱️ ETA:</span> ${etaWithTraffic} min (${trafficText})`;
+        
+        console.log(`📍 Hospital side route: ${distanceKm} km, ${etaWithTraffic} min`);
+        
+    }).on('routingerror', function(e) {
+        console.log("Routing error on hospital side");
+        // Fallback to straight line distance
+        var R = 6371;
+        var dLat = (hospitalCoords[0] - accidentLat) * Math.PI / 180;
+        var dLon = (hospitalCoords[1] - accidentLng) * Math.PI / 180;
+        var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(accidentLat * Math.PI/180) * Math.cos(hospitalCoords[0] * Math.PI/180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        var dist = R * c;
+        var eta = Math.max(1, Math.round(dist * 2));
+        
+        var distElem = document.getElementById(`dist-info-${alertId}`);
+        var etaElem = document.getElementById(`eta-info-${alertId}`);
+        if (distElem) distElem.innerHTML = `<span class="alert-label">📏 Distance:</span> ${dist.toFixed(1)} km (straight)`;
+        if (etaElem) etaElem.innerHTML = `<span class="alert-label">⏱️ ETA:</span> ${eta} min`;
+        
+        document.getElementById('routeInfo').innerHTML = `
+            <div class="title">🚑 FROM ACCIDENT TO HOSPITAL</div>
+            <div><span class="distance">${dist.toFixed(1)} km</span> straight distance</div>
+            <div>⏱️ ETA: <strong>${eta} min</strong></div>
+        `;
+    }).addTo(map);
+}
+    
+    function removeAlertCompletely(alertId) {
+        console.log(`🗑️ Removing alert ${alertId} completely`);
+        
+        var card = document.getElementById("card-" + alertId);
+        if (card) card.remove();
+        
+        if (ambulanceMarkers[alertId]) {
+            map.removeLayer(ambulanceMarkers[alertId]);
+            delete ambulanceMarkers[alertId];
+        }
+        
+        if (routingControls[alertId]) {
+            map.removeControl(routingControls[alertId]);
+            delete routingControls[alertId];
+        }
+        
+        delete activeAlerts[alertId];
+        activeAlertCount--;
+        
+        if (activeAlertCount === 0) {
+            stopAlarm();
+            stopSiren();
+            document.getElementById('routeInfo').innerHTML = `
+                <div class="title">🛣️ REAL ROAD ROUTE</div>
+                <div>Waiting for emergency alert...</div>
+            `;
+            map.flyTo(hospitalCoords, 14, { duration: 1 });
+        } else {
+            document.getElementById('routeInfo').innerHTML = `
+                <div class="title">🚑 MULTIPLE ACTIVE ALERTS</div>
+                <div><strong>${activeAlertCount}</strong> ambulances en route</div>
+                <div>📍 Check right panel for details</div>
+            `;
+        }
+    }
+    
+    function muteSirenOnly(alertId) {
+        stopAlarm();
+        stopSiren();
+        var muteBtn = document.querySelector(`#card-${alertId} .mute-only-btn`);
+        if (muteBtn) {
+            muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i> Sound Muted';
+            muteBtn.style.background = "#555";
+            muteBtn.disabled = true;
+        }
+        showTempMessage("🔇 Alarm/Siren stopped. Alert still active.");
+    }
+    
+    socket.on("emergency_alert", function(data) {
+        console.log("🚨 EMERGENCY ALERT RECEIVED!", data);
+        
+        if (data.hospital && data.hospital.toLowerCase() === hospitalName.toLowerCase()) {
+            showEmergencyAlert(data);
+        }
+    });
+    
+    socket.on("reaching_alert", function(data) {
+        console.log("⏰ REACHING ALERT RECEIVED!", data);
+        
+        if (data.hospital && data.hospital.toLowerCase() === hospitalName.toLowerCase()) {
+            showReachingAlert(data);
+        }
+    });
+    
+    socket.on("case_reaching", function(data) {
+        console.log("✅ Ambulance REACHED hospital!");
+        showTempMessage("✅ AMBULANCE HAS REACHED THE HOSPITAL! Alert cleared.");
+        
+        Object.keys(activeAlerts).forEach(alertId => {
+            removeAlertCompletely(alertId);
+        });
+    });
+    
+    socket.on("case_canceled", function(data) {
+        console.log("❌ Emergency CANCELED by ambulance!");
+        showTempMessage("❌ EMERGENCY CANCELED! Alert cleared.");
+        
+        Object.keys(activeAlerts).forEach(alertId => {
+            removeAlertCompletely(alertId);
+        });
+    });
+    
+    socket.on("join_confirmation", function(data) {
+        console.log("✅ Join confirmed:", data);
+        document.getElementById("connStatus").innerHTML = '<i class="fas fa-circle" style="color:#4caf50"></i> Connected to ' + data.room;
+    });
+    
+    socket.on('connect', function() {
+        console.log("Socket connected!");
+        document.getElementById("connStatus").innerHTML = '<i class="fas fa-circle" style="color:#4caf50"></i> Connected';
+    });
+    
+    socket.on('disconnect', function() {
+        document.getElementById("connStatus").innerHTML = '<i class="fas fa-circle" style="color:#d62828"></i> Disconnected';
+    });
+    
+    function showEmergencyAlert(data) {
+    activeAlertCount++;
+    playAlarm();
+    
+    var alertId = data.ambNumber + "-" + Date.now();
+    var container = document.getElementById("alertContainer");
+    
+    // ✅ Use the distance and ETA from the alert data
+    var initialDist = data.dist || "Calculating...";
+    var initialEta = data.eta || "Calculating...";
+    
+    var card = document.createElement("div");
+    card.id = "card-" + alertId;
+    card.className = "alert-card";
+    card.innerHTML = `
+        <div class="alert-title">
+            <i class="fas fa-map-marker-alt"></i> 🚨 ACCIDENT ALERT
+        </div>
+        <div class="alert-info"><span class="alert-label">🚑 Ambulance:</span> ${data.ambName || 'Emergency Unit'}</div>
+        <div class="alert-info"><span class="alert-label">📞 Number:</span> ${data.ambNumber || 'AMB-001'}</div>
+        <div class="alert-info"><span class="alert-label">📋 Case:</span> <span style="color:#e63946; font-weight:bold">${data.case || 'Emergency'}</span></div>
+        <div class="alert-info" id="dist-info-${alertId}"><span class="alert-label">📏 Distance:</span> ${initialDist}</div>
+        <div class="alert-info" id="eta-info-${alertId}"><span class="alert-label">⏱️ ETA:</span> ${initialEta}</div>
+        <div id="status-${alertId}" class="status-badge status-enroute">🚑 En Route to Hospital</div>
+        <button class="mute-only-btn" onclick="muteSirenOnly('${alertId}')">
+            <i class="fas fa-volume-up"></i> Mute Sound
+        </button>
+    `;
+    container.prepend(card);
+    
+    if (data.uLat && data.uLng) {
+        var accidentIcon = L.divIcon({
+            html: '<div style="background:#ff0000; width:28px; height:28px; border-radius:50%; border:3px solid white; box-shadow:0 0 25px #ff0000; text-align:center; line-height:25px;"><i class="fas fa-exclamation-triangle" style="color:white; font-size:12px;"></i></div>',
+            iconSize: [34, 34],
+            className: 'ambulance-marker'
+        });
+        
+        if (ambulanceMarkers[alertId]) {
+            map.removeLayer(ambulanceMarkers[alertId]);
+        }
+        
+        ambulanceMarkers[alertId] = L.marker([data.uLat, data.uLng], { icon: accidentIcon })
+            .addTo(map)
+            .bindPopup(`<b>🚨 ACCIDENT LOCATION</b><br>${data.case || 'Emergency Case'}<br>Ambulance: ${data.ambName || 'Emergency Unit'}`)
+            .openPopup();
+        
+        zoomToAccidentLocation(data.uLat, data.uLng);
+        calculateRoadRoute(alertId, data.uLat, data.uLng);
+    }
+    
+    card.style.animation = 'none';
+    setTimeout(() => card.style.animation = 'slideIn 0.4s ease-out', 10);
+}
+    
+    function showReachingAlert(data) {
+        playSiren();
+        
+        var container = document.getElementById("alertContainer");
+        
+        var reachingCard = document.createElement("div");
+        reachingCard.className = "alert-card";
+        reachingCard.style.borderLeftColor = "#2196f3";
+        reachingCard.style.background = "linear-gradient(135deg, #e3f2fd, #bbdef5)";
+        reachingCard.innerHTML = `
+            <div class="alert-title">
+                <i class="fas fa-hourglass-half"></i> ⏰ AMBULANCE REACHING SOON
+            </div>
+            <div class="alert-info"><span class="alert-label">🚑 Ambulance:</span> ${data.ambName || 'Ambulance'}</div>
+            <div class="alert-info"><span class="alert-label">📞 Number:</span> ${data.ambNumber || 'CODE-RED-001'}</div>
+            <div class="alert-info"><span class="alert-label">⏱️ ETA:</span> <span style="color:#2196f3; font-weight:bold">${data.eta || '--'} minutes</span></div>
+            <div class="alert-info" style="margin-top: 10px; background: #2196f3; color: white; padding: 8px; border-radius: 8px; text-align: center;">
+                <i class="fas fa-bell"></i> <strong>AMBULANCE REACHING IN FEW MINUTES!</strong><br>
+                <small>Please be ready to receive patient</small>
+            </div>
+            <button class="mute-only-btn" onclick="muteSirenOnly('reaching')" style="background: #2196f3;">
+                <i class="fas fa-volume-up"></i> Mute Siren
+            </button>
+        `;
+        container.prepend(reachingCard);
+        
+        setTimeout(() => {
+            if (reachingCard && reachingCard.parentElement) {
+                reachingCard.remove();
+                stopSiren();
+            }
+        }, 15000);
+    }
+    
+    console.log("🏥 Vibha Hospital Ready - Real road routing active!");
+</script>
+</body>
+</html>

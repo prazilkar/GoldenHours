@@ -1,0 +1,5 @@
+case_id,rescue_ambulance,location,hospital_name,photo,description,status
+f9f9e72f,sks,"11.200943, 78.186337",sks,unidentified_28cf44.jpg,Unconscious Patient,Proved
+290b5db7,sks,"11.200780, 78.186439",sks,unidentified_01da35.jpg,Unconscious Patient,Proved
+db5e81f9,sks,"11.200955, 78.186338",vibha,unidentified_a8638d.jpg,Unconscious Patient,Proved
+2b5b8144,AMB-UNIT,"11.200955, 78.186338",vibha,unidentified_e6118a.jpg,Unconscious Patient,Under Process
